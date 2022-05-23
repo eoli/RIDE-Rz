@@ -295,7 +295,13 @@ class TestRunner(object):
             return
         if not pythonpath:
             return
-        standard_args.extend(['--pythonpath', ':'.join(pythonpath)])
+
+        if isinstance(pythonpath, str):
+            standard_args.extend(['--pythonpath', pythonpath])
+        elif isinstance(pythonpath, list): 
+            standard_args.extend(['--pythonpath', ':'.join(pythonpath)])
+        else:
+            raise Exception("Error: {}".format(pythonpath))
 
     @staticmethod
     def _write_argfile(argfile, args):
