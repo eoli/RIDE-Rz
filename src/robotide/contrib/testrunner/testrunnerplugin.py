@@ -86,6 +86,7 @@ encoding = {'CONSOLE': CONSOLE_ENCODING,
 # print("DEBUG: TestRunnerPlugin encoding=%s" % encoding)
 
 ID_RUN = wx.NewId()
+ID_LOOP = wx.NewId()
 ID_RUNDEBUG = wx.NewId()
 ID_STOP = wx.NewId()
 ID_PAUSE = wx.NewId()
@@ -117,6 +118,7 @@ class TestRunnerPlugin(Plugin):
                     [('jybot', 'jybot' + ('.bat' if os.name == 'nt' else '')),
                      ('pybot', 'pybot' + ('.bat' if os.name == 'nt' else '')),
                      ('robot 3.1', 'robot')],
+                "loop_count": 0,
                 "font size": 10,
                 "font face": 'Courier New',
                 "foreground": 'black',
@@ -145,6 +147,8 @@ class TestRunnerPlugin(Plugin):
         self._register_shortcuts()
         self._min_log_level_number = LOG_LEVELS['INFO']
         self._names_to_run = set()
+        self.loop_count = 0
+        self.loop_enable = False
 
     def _register_shortcuts(self):
         self.register_shortcut('CtrlCmd-C', self._copy_from_out)
@@ -282,6 +286,8 @@ class TestRunnerPlugin(Plugin):
         command line."""
         self._AppendText(self.out, '[ SENDING STOP SIGNAL ]\n',
                          source='stderr')
+        if self.loop_enable:
+            self.loop_enable = False
         self._test_runner.send_stop_signal()
 
     def OnPause(self, event):
@@ -311,6 +317,20 @@ class TestRunnerPlugin(Plugin):
         self.OnRun(event)
         # Restore original function
         self._create_command = tempFunc
+
+    def OnLoop(self, event):
+        self.loop_count = self.defaults['loop_count']
+        self.loop_count_label.SetLabelText("({})".format(self.loop_count))
+        self.loop_enable = True
+        self.OnRun(event)
+
+    def OnLoopCountChanged(self, evt):
+        count = self.loopCountText.GetValue()
+        print("count is", count)
+        try:
+            self.defaults['loop_count'] = int(count)
+        except Exception as e:
+            self.loopCountText.SetValue("error")
 
     def OnRun(self, event):
         """Called when the user clicks the "Run" button"""
@@ -459,6 +479,14 @@ class TestRunnerPlugin(Plugin):
         self._test_runner.command_ended()
         if log_message:
             log_message.publish()
+
+        if self.loop_enable:
+            self.loop_count -= 1
+            if self.loop_count > 0:
+                self.loop_count_label.SetLabelText("({})".format(self.loop_count))
+                self.OnRun(None)
+            else:
+                self.loop_count_label.SetLabelText("(0)")
 
     def _read_report_and_log_from_stdout_if_needed(self):
         output = self.out.GetText()
@@ -625,6 +653,9 @@ class TestRunnerPlugin(Plugin):
         self.MyAddTool(toolbar, ID_RUN, "Start", ImageProvider().TOOLBAR_PLAY,
                        shortHelp="Start robot",
                        longHelp="Start running the robot test suite")
+        self.MyAddTool(toolbar, ID_LOOP, "Loop", ImageProvider().TOOLBAR_PLAY,
+                       shortHelp="Start robot loop",
+                       longHelp="Start running the robot test suite")
         self.MyAddTool(toolbar, ID_RUNDEBUG, "Debug", getBugIconBitmap(),
                        shortHelp="Start robot",
                        longHelp="Start running the robot test suite "
@@ -661,6 +692,7 @@ class TestRunnerPlugin(Plugin):
 
     def _bind_runner_toolbar_events(self, toolbar):
         for event, callback, id in ((wx.EVT_TOOL, self.OnRun, ID_RUN),
+                                    (wx.EVT_TOOL, self.OnLoop, ID_LOOP),
                                     (wx.EVT_TOOL, self.OnRunDebug, ID_RUNDEBUG
                                      ),
                                     (wx.EVT_TOOL, self.OnStop, ID_STOP),
@@ -681,8 +713,20 @@ class TestRunnerPlugin(Plugin):
         self.choice = wx.Choice(toolbar, wx.ID_ANY, choices=choices)
         self.choice.SetToolTip(wx.ToolTip("Choose which method to use for "
                                           "running the tests"))
+        
+        self.loop_label = Label(toolbar, label="Loop: ")
+        self.loopCountText = wx.TextCtrl(toolbar, wx.ID_ANY, size=(50, -1), style=wx.TE_PROCESS_ENTER,
+                           value="0")
+        self.loop_count_label = Label(toolbar, label="      ")
+        self.loopCountText.Bind(wx.EVT_TEXT_ENTER, self.OnLoopCountChanged)
         toolbar.AddControl(profileLabel)
         toolbar.AddControl(self.choice)
+
+        toolbar.AddSeparator()
+        toolbar.AddControl(self.loop_label)
+        toolbar.AddControl(self.loopCountText)
+        toolbar.AddControl(self.loop_count_label)
+
         toolbar.AddSeparator()
         reportImage = getReportIconBitmap()
         logImage = getLogIconBitmap()
@@ -921,6 +965,7 @@ class TestRunnerPlugin(Plugin):
         stop = not run
         debug = stop and not paused
         for id, enabled in ((ID_RUN, run),
+                            (ID_LOOP, run),
                             (ID_RUNDEBUG, run),
                             (ID_STOP, stop),
                             (ID_PAUSE, paused),
