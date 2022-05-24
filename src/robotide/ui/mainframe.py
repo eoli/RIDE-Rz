@@ -180,9 +180,6 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         self.Bind(wx.EVT_SIZE, self.OnSize)
         self.Bind(wx.EVT_MOVE, self.OnMove)
         self.Bind(wx.EVT_MAXIMIZE, self.OnMaximize)
-        if wx.VERSION >= (3, 0, 3, ''):  # DEBUG wxPhoenix
-            self.Bind(wx.EVT_DIRCTRL_FILEACTIVATED, self.OnOpenFile)
-            self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnMenuOpenFile)
         self._subscribe_messages()
         #print("DEBUG: Call register_tools, actions: %s" % self.actions.__repr__())
         if PY2:
@@ -287,16 +284,6 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         # MaximizeButton(True).MinimizeButton(True))
         self.actions.register_actions(
             ActionInfoCollection(_menudata, self, self.tree))
-        ###### File explorer pane
-        if wx.VERSION >= (3, 0, 3, ''):  # DEBUG wxPhoenix
-            self.filemgr = wx.GenericDirCtrl(self, -1, size=(200, 225),
-                                             style=wx.DIRCTRL_3D_INTERNAL)
-            self.filemgr.SetMinSize(wx.Size(120, 200))
-            # wx.CallAfter(self.filemgr.SetPath(self.tree.get_selected_datafile()))
-            self._mgr.AddPane(self.filemgr,
-                              aui.AuiPaneInfo().Name("file_manager").
-                              Caption("Files").LeftDockable(True).
-                              CloseButton(True))
 
         mb.take_menu_bar_into_use()
         #### self.splitter.SetMinimumPaneSize(100)
@@ -424,55 +411,6 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         if not self.check_unsaved_modifications():
             return
         NewProjectDialog(self._controller).execute()
-        self._populate_tree()
-
-    def _populate_tree(self):
-        self.tree.populate(self._controller)
-        if len(self._controller.data.directory) > 1:
-            self.filemgr.SelectPath(self._controller.data.source)
-            try:
-                self.filemgr.ExpandPath(self._controller.data.source)
-            except Exception:
-                pass
-            self.filemgr.Update()
-
-    def OnOpenFile(self, event):
-        if not self.filemgr:
-            return
-        # EVT_DIRCTRL_FILEACTIVATED
-        from os.path import splitext
-        robottypes = self._application.settings.get('robot types', ['robot',
-                                                                    'resource'
-                                                                    'txt',
-                                                                    'tsv',
-                                                                    'html'])
-        path = self.filemgr.GetFilePath()
-        ext = ''
-        if len(path) > 0:
-            ext = splitext(path)
-            ext = ext[1].replace('.', '')
-            # print("DEBUG: path %s ext %s" % (path, ext))
-        if len(ext) > 0 and ext in robottypes:
-            if not self.check_unsaved_modifications():
-                return
-            if self.open_suite(path):
-                return
-        from robotide.editor import customsourceeditor
-        customsourceeditor.main(path)
-
-    def OnMenuOpenFile(self, event):
-        if not self.filemgr:
-            return
-        # TODO: Use widgets/popupmenu tools
-        path = self.filemgr.GetFilePath()
-        if len(path) > 0:
-            self.OnOpenFile(event)
-        else:
-            path = self.filemgr.GetPath()
-            if not self.check_unsaved_modifications():
-                return
-            self.open_suite(path)  # It is a directory, do not edit
-        event.Skip()
 
     def OnOpenTestSuite(self, event):
         if not self.check_unsaved_modifications():
@@ -506,8 +444,6 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
 
     def refresh_datafile(self, item, event):
         self.tree.refresh_datafile(item, event)
-        if self.filemgr:
-            self.filemgr.ReCreateTree()
 
     def OnOpenDirectory(self, event):
         if self.check_unsaved_modifications():
