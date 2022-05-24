@@ -38,6 +38,15 @@ class NoteBook(aui.AuiNotebook):
         self._tab_state = None
         self._uncloseable = []
 
+    def OnTabBeginDrag(self, event):
+        pass
+
+    def OnTabDragMotion(self, event):
+        pass
+    
+    def OnTabEndDrag(self, event):
+        pass
+
     def add_tab(self, tab, title, allow_closing=True):
         if not allow_closing:
             self._uncloseable.append(tab)
