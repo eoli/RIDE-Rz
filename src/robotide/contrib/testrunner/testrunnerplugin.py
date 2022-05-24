@@ -346,9 +346,13 @@ class TestRunnerPlugin(Plugin):
         #if no tests are selected warn the user, issue #1622
         if self.__getattr__('confirm run'):
             if not self.tests_selected():
-                if not self.ask_user_to_run_anyway():
-                    # In Linux NO runs dialog 4 times
-                    return
+                wx.MessageBox('No tests selected. \n',
+                              'No tests selected',
+                              wx.ICON_INFORMATION | wx.OK)
+                return
+                # if not self.ask_user_to_run_anyway():
+                #     # In Linux NO runs dialog 4 times
+                #     return
         self._initialize_ui_for_running()
         command = self._create_command()
         if PY2:
