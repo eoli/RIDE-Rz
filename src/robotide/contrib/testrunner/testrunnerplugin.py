@@ -327,10 +327,17 @@ class TestRunnerPlugin(Plugin):
     def OnLoopCountChanged(self, evt):
         count = self.loopCountText.GetValue()
         print("count is", count)
+        MAX_COUNT = 999999999
         try:
-            self.defaults['loop_count'] = int(count)
+            count = int(count)
+            if count > MAX_COUNT:
+                count = MAX_COUNT
+            elif count < 0:
+                count = 0
+            self.defaults['loop_count'] = count
+            self.loop_count_label.SetLabelText("({})".format(count))
         except Exception as e:
-            self.loopCountText.SetValue("error")
+            self.loop_count_label.SetLabelText("(0)")
 
     def OnRun(self, event):
         """Called when the user clicks the "Run" button"""
@@ -717,8 +724,8 @@ class TestRunnerPlugin(Plugin):
         self.loop_label = Label(toolbar, label="Loop: ")
         self.loopCountText = wx.TextCtrl(toolbar, wx.ID_ANY, size=(50, -1), style=wx.TE_PROCESS_ENTER,
                            value="0")
-        self.loop_count_label = Label(toolbar, label="      ")
-        self.loopCountText.Bind(wx.EVT_TEXT_ENTER, self.OnLoopCountChanged)
+        self.loop_count_label = Label(toolbar, label=" ", size=(100, -1))
+        self.loopCountText.Bind(wx.EVT_TEXT, self.OnLoopCountChanged)
         toolbar.AddControl(profileLabel)
         toolbar.AddControl(self.choice)
 
