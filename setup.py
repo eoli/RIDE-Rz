@@ -62,10 +62,10 @@ class CustomInstallCommand(install):
     """Customized setuptools install command - prints a friendly greeting."""
     def run(self):
         install.run(self)
-        _ = sys.stderr.write("Creating Desktop Shortcut to RIDE...\n")
-        postinstaller_file = join(ROOT_DIR, 'src', 'robotide', 'postinstall', '__main__.py')
-        command = sys.executable + " " +postinstaller_file + " -install"
-        os.system(command)
+        # _ = sys.stderr.write("Creating Desktop Shortcut to RIDE...\n")
+        # postinstaller_file = join(ROOT_DIR, 'src', 'robotide', 'postinstall', '__main__.py')
+        # command = sys.executable + " " +postinstaller_file + " -install"
+        # os.system(command)
 
 setup(
     name='robotframework-ride',
