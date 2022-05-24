@@ -252,7 +252,7 @@ class PybotProfile(BaseProfile):
 
     def ArgumentsPanel(self, parent):
         panel = wx.Panel(parent, wx.ID_ANY)
-        label = Label(panel, label="Arguments: ")
+        self.arguments_label = Label(panel, label="Arguments: ")
         try:
             self._arguments = wx.TextCtrl(
                 panel, wx.ID_ANY, size=(-1, -1), value=self.arguments)
@@ -264,7 +264,7 @@ class PybotProfile(BaseProfile):
                           "Arguments for the test run. Arguments are space separated list.")
         self._arguments.Bind(wx.EVT_TEXT, self.OnArgumentsChanged)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        sizer.Add(label, 0, wx.ALL | wx.EXPAND)
+        sizer.Add(self.arguments_label, 0, wx.ALL | wx.EXPAND)
         sizer.Add(self._arguments, 1, wx.ALL | wx.EXPAND)
         panel.SetSizerAndFit(sizer)
         self._validate_arguments(self.arguments or u'')
@@ -320,10 +320,8 @@ class PybotProfile(BaseProfile):
         # assert type(args) is unicode
         # print("DEBUG: runprofiles: args=%s is_unicode(args)=%s" % (args, is_unicode(args)))
         invalid_message = self._get_invalid_message(args)
-        self._arguments.SetBackgroundColour(
+        self.arguments_label.SetBackgroundColour(
             'red' if invalid_message else 'white')
-        self._arguments.SetForegroundColour(
-            'white' if invalid_message else 'black')
         # DEBUG wxPhoenix  self._arguments.SetToolTipString
         if not bool(invalid_message):
             invalid_message = "Arguments for the test run." \
