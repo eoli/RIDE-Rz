@@ -411,6 +411,10 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         if not self.check_unsaved_modifications():
             return
         NewProjectDialog(self._controller).execute()
+        self._populate_tree()
+
+    def _populate_tree(self):
+        self.tree.populate(self._controller)
 
     def OnOpenTestSuite(self, event):
         if not self.check_unsaved_modifications():
