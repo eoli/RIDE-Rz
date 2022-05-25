@@ -47,6 +47,7 @@ being used for a currently running test.
 """
 import datetime
 import time
+import copy
 import os
 import re
 import wx
@@ -379,10 +380,23 @@ class TestRunnerPlugin(Plugin):
             if log_message:
                 log_message.publish()
 
+    def _get_pythonpath(self):
+        pythonpath = self.global_settings.get('pythonpath', [])
+        dfdir = self.global_settings.get('default directory', None)
+        pythonpath = copy.deepcopy(pythonpath)
+        if dfdir:
+            assert isinstance(dfdir, str)
+            pythonpath.insert(0, dfdir)
+
+        if pythonpath == []:
+            return None
+        print("PYTHONPATH", pythonpath)
+        return pythonpath
+
     def _create_command(self):
         command_as_list = self._test_runner.get_command(
             self.get_current_profile(),
-            self.global_settings.get('pythonpath', None),
+            self._get_pythonpath(),
             self._get_console_width(),
             self._names_to_run)
         self._min_log_level_number = \
@@ -393,7 +407,7 @@ class TestRunnerPlugin(Plugin):
     def _create_debug_command(self):
         command_as_list = self._test_runner.get_command(
             self.get_current_profile(),
-            self.global_settings.get('pythonpath', None),
+            self._get_pythonpath(),
             self._get_console_width(),
             self._names_to_run)
         if '-L' not in command_as_list:
