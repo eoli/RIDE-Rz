@@ -276,7 +276,10 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         self.tree = Tree(self, self.actions,
                          self._application.settings)
         #self.tree.SetMinSize(wx.Size(100, 200))
-        self.tree.SetMinSize(wx.Size(120, 200))
+        main_size = self.GetSize()
+        width = int(main_size.width*0.2)
+        height = int(main_size.height*0.9) 
+        self.tree.SetMinSize(wx.Size(width, height))
         self._mgr.AddPane(self.tree,
                           aui.AuiPaneInfo().Name("tree_content").
                           Caption("Test Suites").LeftDockable(True).
@@ -556,22 +559,15 @@ class RideFrame(with_metaclass(classmaker(), wx.Frame, RideEventHandler)):
         if display_id == -1:
             display_id = 0
         geometry = wx.Display(display_id).GetGeometry()
+
         position = self.GetPosition()
-        if position.x < geometry.x:
-            position.x = geometry.x
-        if position.y < geometry.y:
-            position.y = geometry.y
+        position.x = geometry.x + int(geometry.width * 0.1)
+        position.y = geometry.y + int(geometry.height * 0.1)
+
         size = self.GetSize()
-        if size.width > geometry.width:
-            size.width = geometry.width
-            position.x = geometry.x
-        elif position.x + size.width > geometry.x + geometry.width:
-            position.x = geometry.x + geometry.width - size.width
-        if size.height > geometry.height:
-            size.height = geometry.height
-            position.y = geometry.y
-        elif position.y + size.height > geometry.y + geometry.height:
-            position.y = geometry.y + geometry.height - size.height
+        size.width = int(geometry.width * 0.8)
+        size.height = int(geometry.height * 0.8) 
+
         self.SetPosition(position)
         self.SetSize(size)
 
