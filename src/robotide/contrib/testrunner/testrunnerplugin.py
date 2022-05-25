@@ -327,7 +327,6 @@ class TestRunnerPlugin(Plugin):
 
     def OnLoopCountChanged(self, evt):
         count = self.loopCountText.GetValue()
-        print("count is", count)
         MAX_COUNT = 999999999
         try:
             count = int(count)
@@ -390,7 +389,6 @@ class TestRunnerPlugin(Plugin):
 
         if pythonpath == []:
             return None
-        print("PYTHONPATH", pythonpath)
         return pythonpath
 
     def _create_command(self):
