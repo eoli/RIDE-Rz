@@ -150,6 +150,7 @@ class TestRunnerPlugin(Plugin):
         self._names_to_run = set()
         self.loop_count = 0
         self.loop_enable = False
+        self._is_loop_force_stop = False
 
     def _register_shortcuts(self):
         self.register_shortcut('CtrlCmd-C', self._copy_from_out)
@@ -288,7 +289,7 @@ class TestRunnerPlugin(Plugin):
         self._AppendText(self.out, '[ SENDING STOP SIGNAL ]\n',
                          source='stderr')
         if self.loop_enable:
-            self.loop_enable = False
+            self._is_loop_force_stop = True
         self._test_runner.send_stop_signal()
 
     def OnPause(self, event):
@@ -315,15 +316,31 @@ class TestRunnerPlugin(Plugin):
         tempFunc = self._create_command 
         self._create_command = self._create_debug_command
         # Do normal run with
-        self.OnRun(event)
+        if self._can_run():
+            self.loopResultLabel.Show(False)
+            self.loopResultLabel.SetLabelText("")
+            self._run(event)
         # Restore original function
         self._create_command = tempFunc
 
+    def OnRun(self, event):
+        if self._can_run():
+            self.loopResultLabel.Show(False)
+            self.loopResultLabel.SetLabelText("")
+            self._run(event)
+
     def OnLoop(self, event):
-        self.loop_count = self.defaults['loop_count']
-        self.loop_count_label.SetLabelText("({})".format(self.loop_count))
-        self.loop_enable = True
-        self.OnRun(event)
+        if self._can_run():
+            self._is_loop_force_stop = False
+            self.loop_count = self.defaults['loop_count']
+            self.loopCountLabel.SetLabelText("({})".format(self.loop_count))
+            self.loopResultLabel.SetLabelText("")
+            self.loopResultLabel.Show(True)
+            self.loopCountText.Enable(False)
+            self.loop_enable = True
+            self.loop_pass_count = 0
+            self.loop_fail_count = 0
+            self._run(event)
 
     def OnLoopCountChanged(self, evt):
         count = self.loopCountText.GetValue()
@@ -335,24 +352,27 @@ class TestRunnerPlugin(Plugin):
             elif count < 0:
                 count = 0
             self.defaults['loop_count'] = count
-            self.loop_count_label.SetLabelText("({})".format(count))
+            self.loopCountLabel.SetLabelText("({})".format(count))
         except Exception as e:
-            self.loop_count_label.SetLabelText("(0)")
+            self.loopCountLabel.SetLabelText("(0)")
 
-    def OnRun(self, event):
+    def _can_run(self):
         """Called when the user clicks the "Run" button"""
         if not self._can_start_running_tests():
-            return
+            return False
         #if no tests are selected warn the user, issue #1622
         if self.__getattr__('confirm run'):
             if not self.tests_selected():
                 wx.MessageBox('No tests selected. \n',
                               'No tests selected',
                               wx.ICON_INFORMATION | wx.OK)
-                return
+                return False
                 # if not self.ask_user_to_run_anyway():
                 #     # In Linux NO runs dialog 4 times
                 #     return
+        return True
+
+    def _run(self, event):
         self._initialize_ui_for_running()
         command = self._create_command()
         if PY2:
@@ -504,12 +524,37 @@ class TestRunnerPlugin(Plugin):
             log_message.publish()
 
         if self.loop_enable:
+            if self._is_loop_force_stop:
+                result = "FAIL"
+            else:
+                result =  self._progress_bar.is_pass()
+            self._update_loop_result(result)
+
             self.loop_count -= 1
             if self.loop_count > 0:
-                self.loop_count_label.SetLabelText("({})".format(self.loop_count))
-                self.OnRun(None)
+                self.loopCountLabel.SetLabelText("({})".format(self.loop_count))
+                if self._is_loop_force_stop:
+                    self.loopCountText.Enable(True)
+                    self.loop_enable = False
+                else:
+                    self._run(None)
             else:
-                self.loop_count_label.SetLabelText("(0)")
+                # quit loop
+                self.loopCountText.Enable(True)
+                self.loop_enable = False
+                self.loopCountLabel.SetLabelText("(0)")
+
+    def _update_loop_result(self, result):
+        if result == "PASS":
+            self.loop_pass_count += 1
+        elif result == "FAIL":
+            self.loop_fail_count += 1
+        self.loopResultLabel.SetLabelText("{}P / {}F".format(self.loop_pass_count, self.loop_fail_count))
+
+        if self.loop_fail_count > 0:
+            self.loopResultLabel.SetBackgroundColour("#FF8E8E") #red
+        elif self.loop_pass_count > 0:
+            self.loopResultLabel.SetBackgroundColour("#9FCC9F") # green
 
     def _read_report_and_log_from_stdout_if_needed(self):
         output = self.out.GetText()
@@ -737,18 +782,20 @@ class TestRunnerPlugin(Plugin):
         self.choice.SetToolTip(wx.ToolTip("Choose which method to use for "
                                           "running the tests"))
         
-        self.loop_label = Label(toolbar, label="Loop: ")
+        self.loopLabel = Label(toolbar, label="Loop: ")
         self.loopCountText = wx.TextCtrl(toolbar, wx.ID_ANY, size=(50, -1), style=wx.TE_PROCESS_ENTER,
                            value="0")
-        self.loop_count_label = Label(toolbar, label=" ", size=(100, -1))
+        self.loopCountLabel = Label(toolbar, label=" ", size=(100, -1))
+        self.loopResultLabel = Label(toolbar, label=" ", size=(200, -1))
         self.loopCountText.Bind(wx.EVT_TEXT, self.OnLoopCountChanged)
         toolbar.AddControl(profileLabel)
         toolbar.AddControl(self.choice)
 
         toolbar.AddSeparator()
-        toolbar.AddControl(self.loop_label)
+        toolbar.AddControl(self.loopLabel)
         toolbar.AddControl(self.loopCountText)
-        toolbar.AddControl(self.loop_count_label)
+        toolbar.AddControl(self.loopCountLabel)
+        toolbar.AddControl(self.loopResultLabel)
 
         toolbar.AddSeparator()
         reportImage = getReportIconBitmap()
@@ -1019,6 +1066,14 @@ class ProgressBar(wx.Panel):
         self._pass = 0
         self._fail = 0
         self._current_keywords = []
+
+    def is_pass(self):
+        if self._fail>0:
+            return "FAIL"
+        elif self._pass>0:
+            return "PASS"
+        else:
+            return "UNKNOWN" 
 
     def set_current_keyword(self, name):
         self._current_keywords.append(name)
